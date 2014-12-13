@@ -1,0 +1,65 @@
+---
+- hosts: all
+  sudo: yes
+
+  tasks:
+  - name: Install PostgreSQL and deps
+    apt:
+      name: "{{ item }}"
+      state: present
+      update_cache: yes
+      cache_valid_time: 3600
+      install_recommends: yes
+    with_items:
+    - postgresql
+    - libpq-dev
+    - python-psycopg2
+    - openjdk-7-jdk
+
+- hosts: all
+  sudo: yes
+  sudo_user: postgres
+
+  vars:
+    dbname: mingle
+    dbuser: mingle
+    dbpass: md5b7d53e32e27d13af8b18a4abd1c12135
+
+  tasks:
+  - name: Create database
+    postgresql_db:
+      name: "{{ dbname }}"
+      state: present
+      encoding: "UTF-8"
+
+  - name: Add user to database
+    postgresql_user:
+      name: "{{ dbuser }}"
+      db: "{{ dbname }}"
+      password: "{{ dbpass }}"
+      encrypted: yes
+      state: present
+
+- hosts: all
+  sudo: yes
+
+  vars:
+    mingle_file: mingle_unix_14_2_a546cdd.tar.gz
+    mingle_data: /opt/mingle_data
+
+  tasks:
+  #- name: Download Mingle
+  #  get_url:
+  #    url: http://download01.thoughtworks.com/mingle/14_2/mingle_unix_14_2_a546cdd.tar.gz
+  #    dest: /opt
+  - name: Unpack Mingle to remote machine
+    unarchive:
+      src: "files/{{ mingle_file }}"
+      dest: /opt
+      copy: yes
+      creates: /opt/mingle_14_2
+
+  - name: Start Mingle Service
+    command: "./MingleServer --mingle.dataDir={{ mingle_data }} start"
+    args:
+      chdir: /opt/mingle_14_2
